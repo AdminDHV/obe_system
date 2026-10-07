@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* DHV Deep Red — primary accent */
+    --primary: 0 62% 41%;
+    --primary-foreground: 0 0% 100%;
+
+    /* DHV Dark Navy */
+    --foreground: 230 50% 19%;
+    --background: 0 0% 99%;
+
+    /* Card / Surface */
+    --card: 0 0% 100%;
+    --card-foreground: 230 50% 19%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 50% 19%;
+
+    /* Secondary — subtle warm gray */
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 230 30% 20%;
+
+    /* Muted */
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 50%;
+
+    /* Accent */
+    --accent: 0 0% 96%;
+    --accent-foreground: 230 50% 19%;
+
+    /* Destructive */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders / Inputs */
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 62% 41%;
+
+    /* Radius */
+    --radius: 0.5rem;
+
+    /* Sidebar — Dark Navy */
+    --sidebar-background: 230 50% 19%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 62% 41%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 62% 41%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 230 30% 30%;
+    --sidebar-ring: 0 62% 41%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
