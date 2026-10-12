@@ -16,7 +16,7 @@ export const TEMPLATE_GROUPS = [
       {
         name: 'Khai báo chương trình',
         routeName: 'manager.reports.structure.template',
-        desc: 'Ngành và khóa · PLO/PI kèm trọng số (các PI của một PLO cộng lại đúng 1) · danh sách môn · ma trận chuẩn đầu ra các học phần (môn × PLO/PI, chép từ CTĐT) · danh sách sinh viên. CLO không khai ở đây mà khai ở phiếu từng môn.',
+        desc: 'Ngành và khóa · PLO/PI kèm trọng số (các PI của một PLO cộng lại đúng 1) · danh sách môn kèm loại học phần bắt buộc / tự chọn và khối, hướng chuyên ngành · ma trận chuẩn đầu ra các học phần (môn × PLO/PI, chép từ CTĐT) · danh sách sinh viên. CLO không khai ở đây mà khai ở phiếu từng môn.',
         must: true,
       },
     ],

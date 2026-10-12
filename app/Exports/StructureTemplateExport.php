@@ -29,6 +29,7 @@ class StructureTemplateExport
             ['File này khai MỘT LẦN vào ĐẦU KHÓA cho cả chương trình. Tải lại file đã sửa là cập nhật, không nhân đôi.'],
             ['Cột Bậc ở sheet Nganh_Khoa ghi "Đại học" hoặc "Thạc sĩ" — quyết định ngưỡng đạt theo quy chế (đại học qua môn 4,0; thạc sĩ 5,5). Bỏ trống thì dùng ngưỡng đang khai ở màn hình Trường.'],
             ['Số tiết và Bộ môn phụ trách ở sheet MonHoc dùng cho mục Thông tin chung của báo cáo học phần; bỏ trống được.'],
+            ['Loại học phần ở sheet MonHoc ghi "Bắt buộc" hoặc "Tự chọn". Học phần tự chọn ghi thêm Khối / Hướng (vd "Hướng Tài chính doanh nghiệp"); các môn cùng tên khối vào chung một khối. Bắt buộc thì bỏ trống Khối / Hướng được. Hai cột này để trống thì giữ nguyên khối đã xếp ở màn hình Danh mục → Cấu trúc CTĐT; số tín chỉ yêu cầu của từng khối đặt ở màn hình đó.'],
             ['Nganh_Khoa: mỗi khóa một dòng. PLO_PI: mỗi PI một dòng; PLO nào không chia PI thì để trống Mã PI.'],
             ['Trọng số các PI của một PLO phải cộng lại đúng 1.'],
             ['MonHoc: mọi môn của chương trình. SinhVien: danh sách sinh viên (không bắt buộc — phiếu lớp học phần tự thêm sinh viên chưa có).'],
@@ -50,11 +51,13 @@ class StructureTemplateExport
             ['8340201', 'PLO5', 'Phát triển kỹ năng tổ chức quản trị và phân tích phản biện', null, null, null],
         ]);
 
-        $this->sheet($book, 'MonHoc', ['Mã ngành', 'Mã môn', 'Tên môn', 'Tín chỉ', 'Số tiết', 'Bộ môn phụ trách'], [
-            ['8340201', '81001', 'Triết học', 4, 60, 'Bộ môn Lý luận chính trị'],
-            ['8340201', '81002', 'Phương pháp nghiên cứu trong kinh doanh (định tính)', 3, 45, 'Bộ môn Quản trị Kinh doanh'],
-            ['8340201', '81003', 'Phân tích chính sách tiền tệ và tài khóa', 3, 45, 'Bộ môn Tài chính – Ngân hàng'],
+        $this->sheet($book, 'MonHoc', ['Mã ngành', 'Mã môn', 'Tên môn', 'Tín chỉ', 'Số tiết', 'Bộ môn phụ trách', 'Loại học phần', 'Khối / Hướng'], [
+            ['8340201', '81001', 'Triết học', 4, 60, 'Bộ môn Lý luận chính trị', 'Bắt buộc', null],
+            ['8340201', '81002', 'Phương pháp nghiên cứu trong kinh doanh (định tính)', 3, 45, 'Bộ môn Quản trị Kinh doanh', 'Bắt buộc', null],
+            ['8340201', '81003', 'Phân tích chính sách tiền tệ và tài khóa', 3, 45, 'Bộ môn Tài chính – Ngân hàng', 'Tự chọn', 'Hướng Tài chính doanh nghiệp'],
         ]);
+        $this->listValidation($book->getSheetByName('MonHoc'), 'G2:G500', 'Bắt buộc,Tự chọn', 'Ghi "Bắt buộc" hoặc "Tự chọn".');
+        $book->getSheetByName('MonHoc')->getColumnDimension('H')->setWidth(32);
 
         // Ví dụ lấy từ mục 13 "Ma trận chuẩn đầu ra các học phần" của CTĐT Thạc sĩ TCNH khách gửi.
         $this->sheet($book, 'MaTran_CTDT', ['Mã môn', 'Tên môn (ghi cho dễ đọc)', 'PLO1', 'PLO2', 'PLO5'], [
@@ -85,6 +88,20 @@ class StructureTemplateExport
             ->setErrorTitle('Mức không hợp lệ')
             ->setError('Chỉ ghi I, R, M hoặc A.')
             ->setFormula1('"I,R,M,A"');
+        $dv->setSqref($range);
+    }
+
+    private function listValidation(Worksheet $ws, string $range, string $values, string $error): void
+    {
+        [$first] = explode(':', $range);
+        $dv = $ws->getCell($first)->getDataValidation();
+        $dv->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST)
+            ->setAllowBlank(true)
+            ->setShowDropDown(true)
+            ->setShowErrorMessage(true)
+            ->setErrorTitle('Giá trị không hợp lệ')
+            ->setError($error)
+            ->setFormula1('"' . $values . '"');
         $dv->setSqref($range);
     }
 

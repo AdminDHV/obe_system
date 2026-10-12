@@ -115,7 +115,8 @@ export default function Index({ programs, program, groups = [], courses = [], un
             <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
               Khai các khối học phần: khối bắt buộc ai cũng học, và các hướng chuyên ngành để học viên chọn.
               Đây là căn cứ để hệ thống biết mỗi học viên phải học những học phần nào, từ đó hiện được
-              &ldquo;đã đo 1 trên 3 học phần&rdquo; cho từng chỉ số PI.
+              &ldquo;đã đo 1 trên 3 học phần&rdquo; cho từng chỉ số PI. Khai nhanh bằng file khai báo chương trình
+              (cột Loại học phần và Khối / Hướng ở sheet MonHoc) cũng vào đúng các khối ở đây; số tín chỉ yêu cầu của khối đặt ở màn hình này.
             </p>
           </div>
           <div className="w-72">

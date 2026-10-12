@@ -653,7 +653,7 @@ final class ClassSheetService
             $syllabus = $ctx['syllabus'];
             [$cloModels, $assessmentModels] = $this->modelsOf($syllabus);
         } else {
-            $program->courses()->syncWithoutDetaching([$course->id => ['is_mandatory' => true]]);
+            $program->courses()->syncWithoutDetaching([$course->id]); // không ghi đè cờ bắt buộc/tự chọn đã khai
             $syllabus = $this->syllabi->forCourse($course, $cohort);
 
             // CLO, ma trận và trọng số bài treo vào ĐỀ CƯƠNG — dùng chung cho mọi lớp cùng môn, cùng khóa.

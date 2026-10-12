@@ -47,7 +47,7 @@ export const STEPS = [
       columns: [
         { col: 'Sheet Nganh_Khoa', meaning: 'Mã ngành · Tên ngành · Khoa quản lý · Tên khóa · Năm bắt đầu. Mỗi khóa một dòng.' },
         { col: 'Sheet PLO_PI', meaning: 'Mã PLO · Mô tả · Mã PI · Mô tả PI · Trọng số PI. Mỗi PI một dòng. Trọng số các PI của một PLO phải cộng lại đúng 1. PLO nào không chia PI thì để trống Mã PI — CLO sẽ nối thẳng vào PLO đó.' },
-        { col: 'Sheet MonHoc', meaning: 'Mã môn · Tên môn · Tín chỉ. Tín chỉ tham gia công thức PI/PLO nên phải đúng.' },
+        { col: 'Sheet MonHoc', meaning: 'Mã môn · Tên môn · Tín chỉ · Loại học phần (Bắt buộc / Tự chọn) · Khối / Hướng. Tín chỉ tham gia công thức PI/PLO nên phải đúng. Học phần tự chọn ghi tên hướng chuyên ngành; các môn cùng tên hướng vào chung một khối ở màn hình Cấu trúc CTĐT. Hai cột này để trống thì giữ nguyên khối đã xếp.' },
         { col: 'Sheet MaTran_CTDT', meaning: 'Chép bảng "Ma trận chuẩn đầu ra các học phần trong chương trình đào tạo" của CTĐT: Mã môn · mỗi PLO/PI một cột, ô ghi I/R/M/A. Cột PLO áp mức cho mọi PI của PLO đó. Mức ở đây là trọng số khi tính PI/PLO, và phiếu lớp chỉ được nối CLO vào PLO/PI mà ma trận ghi cho môn. Không khai CLO ở file này — CLO khai ở phiếu từng môn.' },
         { col: 'Sheet SinhVien', meaning: 'MSSV · Họ và tên · Năm khóa. Không bắt buộc — phiếu lớp học phần tự thêm sinh viên chưa có.' },
       ],

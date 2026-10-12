@@ -271,7 +271,7 @@ final class CourseFrameService
             /** @var Course $course */
             $course = $g['course'];
 
-            $program->courses()->syncWithoutDetaching([$course->id => ['is_mandatory' => true]]);
+            $program->courses()->syncWithoutDetaching([$course->id]); // không ghi đè cờ bắt buộc/tự chọn đã khai
             $syllabus = $this->syllabi->forCourse($course, $cohort);
 
             $before = null;

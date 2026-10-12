@@ -14,6 +14,7 @@ use App\Models\Course;
 use App\Models\CourseClass;
 use App\Models\CourseOutcomeLevel;
 use App\Models\CourseSyllabus;
+use App\Models\CurriculumGroup;
 use App\Models\Department;
 use App\Models\MappingScaleWeight;
 use App\Models\Pi;
@@ -44,6 +45,7 @@ class StructureBuilderService
     private array $stats = [
         'nganh' => 0, 'khoa' => 0, 'mon' => 0, 'clo' => 0, 'bai_danh_gia' => 0,
         'bai_danh_gia_clo' => 0, 'plo' => 0, 'pi' => 0, 'clo_pi' => 0, 'ma_tran_ctdt' => 0, 'lop' => 0, 'sinh_vien' => 0,
+        'xep_khoi' => 0, 'khoi_moi' => 0,
     ];
 
     /** Tenant being built — every lookup by code is scoped to this school. */
@@ -369,12 +371,124 @@ class StructureBuilderService
             $this->activeSyllabus($course);
 
             // Attach the course to the program (program_courses) when a program code is given.
+            // Chỉ gắn khi chưa có — không ghi đè cờ bắt buộc/tự chọn đã khai trước đó.
             $progCode = $this->val($row, 'ma_nganh', 'program_code');
-            if ($progCode && ($program = $this->programByCode($progCode))) {
-                $program->courses()->syncWithoutDetaching([$course->id => ['is_mandatory' => true]]);
+            $program = $progCode ? $this->programByCode($progCode) : null;
+            if ($program) {
+                $program->courses()->syncWithoutDetaching([$course->id]);
             }
+            $this->assignCurriculumGroup($program, $course, $row, $rowNum);
             $this->stats['mon']++;
         }
+    }
+
+    /**
+     * Cột "Loại học phần" (Bắt buộc / Tự chọn) và "Khối / Hướng" của sheet MonHoc.
+     *
+     * Ghi vào đúng các khối của màn hình Danh mục → Cấu trúc CTĐT (`curriculum_groups`, môn nằm ở
+     * khối nào lưu trên `program_courses.curriculum_group_id`) — khai bằng file hay sửa trên màn hình
+     * vẫn là một chỗ dữ liệu.
+     *
+     *   - cả hai cột trống ⇒ KHÔNG đụng: giữ nguyên khối đã xếp trên màn hình (file cũ không có hai cột
+     *     này nhập lại không được xóa mất cấu trúc trường đã khai);
+     *   - Khối ghi mã hoặc tên khối đã có (không phân biệt hoa thường), chưa có thì tạo theo Loại;
+     *   - Bắt buộc mà bỏ trống Khối ⇒ vào khối bắt buộc duy nhất của ngành (chưa có thì tạo);
+     *   - Tự chọn thì phải ghi Khối — không biết hướng nào thì không tính được lộ trình riêng.
+     *
+     * Lỗi ở một dòng thì môn vẫn được tạo như mọi khi, chỉ chưa xếp khối — đúng cách sheet này xử lý lỗi.
+     *
+     * @param array<string,mixed>|Collection $row
+     */
+    private function assignCurriculumGroup(?Program $program, Course $course, $row, int $rowNum): void
+    {
+        $rawKind = $this->val($row, 'loai_hoc_phan');
+        $groupRef = $this->val($row, 'khoi');
+        if ($rawKind === null && $groupRef === null) {
+            return;
+        }
+        if ($program === null) {
+            $this->err('Mon', $rowNum, "môn {$course->code} ghi Loại học phần / Khối nhưng không biết thuộc ngành nào — ghi Mã ngành.");
+            return;
+        }
+
+        $kind = null;
+        if ($rawKind !== null) {
+            $kind = $this->curriculumKind($rawKind);
+            if ($kind === null) {
+                $this->err('Mon', $rowNum, "Loại học phần '{$rawKind}' không hiểu — ghi \"Bắt buộc\" hoặc \"Tự chọn\".");
+                return;
+            }
+        }
+
+        $groups = CurriculumGroup::where('program_id', $program->id)->orderBy('sort_order')->orderBy('id')->get();
+
+        if ($groupRef === null) {
+            if ($kind === CurriculumGroup::KIND_ELECTIVE) {
+                $this->err('Mon', $rowNum, "môn {$course->code} là học phần tự chọn nhưng chưa ghi Khối / Hướng — ghi tên hướng chuyên ngành của môn.");
+                return;
+            }
+            $mandatory = $groups->where('kind', CurriculumGroup::KIND_MANDATORY)->values();
+            if ($mandatory->count() > 1) {
+                $this->err('Mon', $rowNum, "ngành {$program->code} có nhiều khối bắt buộc (" . $mandatory->pluck('name')->implode(', ') . ") — ghi rõ Khối / Hướng của môn {$course->code}.");
+                return;
+            }
+            $group = $mandatory->first() ?? $this->createCurriculumGroup($program, 'Khối bắt buộc', CurriculumGroup::KIND_MANDATORY, 'BAT_BUOC');
+        } else {
+            $needle = mb_strtolower($groupRef);
+            $group = $groups->first(fn (CurriculumGroup $g) => mb_strtolower($g->code) === $needle || mb_strtolower($g->name) === $needle);
+            if ($group === null) {
+                if ($kind === null) {
+                    $this->err('Mon', $rowNum, "ngành {$program->code} chưa có khối '{$groupRef}' — ghi thêm Loại học phần (Bắt buộc / Tự chọn) để hệ thống tạo khối này.");
+                    return;
+                }
+                $group = $this->createCurriculumGroup($program, $groupRef, $kind);
+            } elseif ($kind !== null && $group->kind !== $kind) {
+                $this->err('Mon', $rowNum, "khối '{$group->name}' là khối " . ($group->kind === CurriculumGroup::KIND_MANDATORY ? 'bắt buộc' : 'tự chọn')
+                    . " nhưng dòng này ghi " . ($kind === CurriculumGroup::KIND_MANDATORY ? 'Bắt buộc' : 'Tự chọn') . ' — sửa cho khớp.');
+                return;
+            }
+        }
+
+        DB::table('program_courses')
+            ->where('program_id', $program->id)
+            ->where('course_id', $course->id)
+            ->update([
+                'curriculum_group_id' => $group->id,
+                'is_mandatory' => $group->kind === CurriculumGroup::KIND_MANDATORY,
+            ]);
+        $this->stats['xep_khoi']++;
+    }
+
+    /** "Bắt buộc" · "BB" ⇒ mandatory; "Tự chọn" · "TC" · "Hướng chuyên ngành" ⇒ elective. */
+    private function curriculumKind(string $raw): ?string
+    {
+        $slug = \Illuminate\Support\Str::slug($raw, '_');
+
+        return match (true) {
+            in_array($slug, ['bat_buoc', 'bb', 'b', 'mandatory', 'compulsory', 'required'], true) => CurriculumGroup::KIND_MANDATORY,
+            in_array($slug, ['tu_chon', 'tc', 'elective', 'optional', 'huong', 'huong_chuyen_nganh', 'chuyen_nganh', 'tu_chon_bat_buoc', 'tu_chon_tu_do'], true) => CurriculumGroup::KIND_ELECTIVE,
+            default => null,
+        };
+    }
+
+    private function createCurriculumGroup(Program $program, string $name, string $kind, ?string $code = null): CurriculumGroup
+    {
+        $base = mb_substr($code ?? mb_strtoupper(\Illuminate\Support\Str::slug($name, '_')) ?: 'KHOI', 0, 45);
+        $code = $base;
+        for ($n = 2; CurriculumGroup::where('program_id', $program->id)->where('code', $code)->exists(); $n++) {
+            $code = $base . '_' . $n;
+        }
+
+        $this->stats['khoi_moi']++;
+
+        return CurriculumGroup::create([
+            'school_id' => $this->schoolId,
+            'program_id' => $program->id,
+            'code' => $code,
+            'name' => $name,
+            'kind' => $kind,
+            'sort_order' => $kind === CurriculumGroup::KIND_MANDATORY ? 0 : 10,
+        ]);
     }
 
     // 4. CLOs
@@ -788,6 +902,10 @@ class StructureBuilderService
                 'so_tin_chi' => $this->val($row, 'tin_chi', 'so_tin_chi'),
                 'so_tiet' => $this->val($row, 'so_tiet', 'tong_so_tiet', 'thoi_luong'),
                 'bo_mon' => $this->val($row, 'bo_mon', 'bo_mon_phu_trach', 'don_vi_phu_trach'),
+                // Bắt buộc / tự chọn và khối (hướng chuyên ngành) — ghi vào chính các khối của màn
+                // hình Cấu trúc CTĐT, không giữ danh sách thứ hai (xem assignCurriculumGroup()).
+                'loai_hoc_phan' => $this->val($row, 'loai_hoc_phan', 'loai_hp', 'loai_mon', 'bat_buoc_tu_chon', 'loai'),
+                'khoi' => $this->val($row, 'khoi_huong', 'khoi_huong_chuyen_nganh', 'khoi', 'huong', 'huong_chuyen_nganh', 'khoi_hoc_phan', 'nhom'),
                 'ma_nganh' => $programOf($row),
             ])->values();
         }
