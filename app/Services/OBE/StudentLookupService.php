@@ -73,12 +73,16 @@ class StudentLookupService
     /**
      * Tìm học viên theo MSSV + mã. Trả null cho MỌI trường hợp thất bại.
      */
-    public function find(string $studentCode, string $code, ?string $ip = null): ?Student
+    public function find(string $studentCode, string $code, ?string $ip = null, ?int $schoolId = null): ?Student
     {
         $studentCode = trim($studentCode);
         $code = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $code) ?? '');
 
-        $student = Student::where('student_code', $studentCode)->first();
+        // Mã số học viên chỉ duy nhất trong một trường: tìm toàn hệ thống thì hai trường trùng mã số sẽ
+        // lấy nhầm người, và học viên đúng không bao giờ tra được.
+        $student = Student::where('student_code', $studentCode)
+            ->when($schoolId !== null, fn ($q) => $q->where('school_id', $schoolId))
+            ->first();
 
         // Luôn so một lần, kể cả khi không có học viên — tránh lộ qua thời gian phản hồi.
         $expected = $student?->lookup_code ?? str_repeat('-', 8);
@@ -88,6 +92,7 @@ class StudentLookupService
 
         Log::channel('obe')->info('Tra cứu kết quả học viên', [
             'student_code' => $studentCode,
+            'school_id' => $schoolId,
             'ket_qua' => $ok ? 'thành công' : 'thất bại',
             'ip' => $ip,
         ]);

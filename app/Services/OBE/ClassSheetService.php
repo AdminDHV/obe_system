@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\OBE;
 
 use App\Events\GradeUpdatedEvent;
+use App\Exports\ClassSheetTemplate;
 use App\Models\Assessment;
 use App\Models\Clo;
 use App\Models\CloPiMapping;
@@ -104,7 +105,7 @@ final class ClassSheetService
         $at = fn (string $k) => $info . ' · ô ' . ($i['_cell_' . $k] ?? '?');
 
         // Thông tin lớp học phần
-        foreach (['ma_mon' => 'Mã môn học', 'nganh' => 'Mã ngành', 'khoa' => 'Khóa', 'ma_lop' => 'Mã lớp học phần', 'giang_vien' => 'Giảng viên giảng dạy'] as $k => $label) {
+        foreach (['ma_mon' => 'Mã môn học', 'nganh' => 'Mã ngành', 'khoa' => 'Khóa', 'ma_lop' => 'Mã lớp học phần'] as $k => $label) {
             if (($i[$k] ?? null) === null) {
                 $e[] = "{$info}: thiếu '{$label}'.";
             }
@@ -176,6 +177,14 @@ final class ClassSheetService
             }
         }
         $theoHeThong = $syllabus !== null;
+
+        // Lớp đã có trong khung (hoặc phiếu bổ sung) giữ giảng viên của khung — chỉ kiểm khi phiếu tự tạo lớp.
+        if (! ($theoHeThong && $existing !== null)) {
+            $gv = $this->lecturerProblem($i['ma_gv'] ?? null, $i['giang_vien'] ?? null, $schoolId);
+            if ($gv !== null) {
+                $e[] = "{$info} · ô " . ($i['_cell_giang_vien'] ?? $i['_cell_ma_gv'] ?? '?') . ": {$gv}";
+            }
+        }
 
         $sheetWarnings = [];
         if ($theoHeThong) {
@@ -671,7 +680,7 @@ final class ClassSheetService
                 [
                     'syllabus_id' => $syllabus->id,
                     'cohort_id' => $cohort->id,
-                    'lecturer_id' => $this->lecturer((string) $info['giang_vien'], $schoolId)->id,
+                    'lecturer_id' => $this->lecturer($info['ma_gv'] ?? null, $info['giang_vien'] ?? null, $schoolId)->id,
                     'academic_year' => $info['nam_hoc'] ?? ($cohort->start_year . '-' . ($cohort->start_year + 1)),
                     'semester' => (int) (ClassSheetReader::number($info['hoc_ky'] ?? null) ?? 1),
                 ],
@@ -1012,34 +1021,131 @@ final class ClassSheetService
     }
 
     /**
-     * Giảng viên theo tên hoặc mã trong trường. Chưa có thì tạo tài khoản KHÔNG đăng nhập được —
-     * lớp bắt buộc gắn giảng viên, nhưng khách chỉ ghi tên, không ai phải đi tạo tài khoản trước.
+     * Kiểm giảng viên của một lớp trước khi ghi. Trả null nếu ổn, hoặc câu lỗi.
+     *
+     * Trong một trường hay có hai giảng viên trùng họ tên. Chỉ ghi tên mà khớp từ hai người trở lên thì
+     * không đoán — bắt ghi mã giảng viên, vì gắn nhầm là điểm cả lớp hiện dưới tên người khác.
      */
-    public function lecturer(string $name, int $schoolId): User
+    public function lecturerProblem(?string $code, ?string $name, int $schoolId): ?string
     {
-        $found = User::where('school_id', $schoolId)
-            ->where(fn ($q) => $q->where('staff_code', $name)->orWhereRaw('LOWER(full_name) = ?', [mb_strtolower($name)]))
-            ->first();
+        $code = $this->clean($code);
+        $name = $this->clean($name);
+        if ($code === null && $name === null) {
+            return 'thiếu giảng viên (ghi mã giảng viên hoặc họ tên).';
+        }
+        if ($code !== null) {
+            return null; // mã có sẵn thì dùng, chưa có thì tạo tài khoản mang đúng mã đó
+        }
+        if ($this->byStaffCode($name, $schoolId) !== null) {
+            return null; // ô tên ghi luôn mã giảng viên
+        }
+        $same = $this->byFullName($name, $schoolId);
+        if ($same->count() > 1) {
+            return "trường có {$same->count()} giảng viên cùng tên '{$name}' (mã "
+                . $same->pluck('staff_code')->implode(', ')
+                . ') — ghi thêm mã giảng viên để chọn đúng người.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Giảng viên của lớp trong trường: theo MÃ trước, không có mã mới theo họ tên. Chưa có thì tạo tài
+     * khoản KHÔNG đăng nhập được — lớp bắt buộc gắn giảng viên, nhưng không ai phải đi tạo tài khoản trước.
+     * Gọi sau `lecturerProblem()`: trùng tên mà thiếu mã đã bị chặn ở bước kiểm.
+     */
+    public function lecturer(?string $code, ?string $name, int $schoolId): User
+    {
+        $code = $this->clean($code);
+        $name = $this->clean($name);
+
+        $found = $code !== null
+            ? $this->byStaffCode($code, $schoolId)
+            : ($this->byStaffCode((string) $name, $schoolId) ?? $this->byFullName((string) $name, $schoolId)->first());
         if ($found) {
             return $found;
         }
 
-        $code = 'GV-' . $schoolId . '-' . substr(sha1(mb_strtolower($name)), 0, 8);
-        $user = User::firstOrCreate(
-            ['staff_code' => $code],
-            [
-                'full_name' => $name,
-                'email' => strtolower($code) . '@phieu.local',
+        // Trường bắt đầu ghi mã thật cho giảng viên trước đây chỉ ghi tên: tài khoản cũ mang mã máy sinh.
+        // Đúng một tài khoản như vậy cùng tên thì gán mã thật cho nó — tạo mới là tách lớp cũ và lớp mới
+        // của cùng một người ra hai tài khoản.
+        if ($code !== null && $name !== null) {
+            $auto = $this->byFullName($name, $schoolId)
+                ->filter(fn (User $u) => ClassSheetTemplate::realStaffCode($u->staff_code, $schoolId) === null);
+            if ($auto->count() === 1) {
+                $user = $auto->first();
+                $user->update(['staff_code' => $code]);
+
+                return $user;
+            }
+        }
+
+        $staffCode = $code ??'GV-' . $schoolId . '-' . substr(sha1(mb_strtolower((string) $name)), 0, 8);
+        $user = User::where('school_id', $schoolId)->where('staff_code', $staffCode)->first()
+            ?? User::create([
+                'staff_code' => $staffCode,
+                'full_name' => $name ?? $staffCode,
+                'email' => $this->placeholderEmail($staffCode, $schoolId),
                 'password' => bcrypt(Str::random(40)),
                 'school_id' => $schoolId,
                 'is_active' => false,
-            ],
-        );
+            ]);
         if (Role::where('name', 'lecturer')->exists() && ! $user->hasRole('lecturer')) {
             $user->assignRole('lecturer');
         }
 
         return $user;
+    }
+
+    private function clean(?string $v): ?string
+    {
+        $v = trim(preg_replace('/\s+/u', ' ', (string) $v) ?? '');
+
+        return $v === '' ? null : $v;
+    }
+
+    private function byStaffCode(string $code, int $schoolId): ?User
+    {
+        return User::where('school_id', $schoolId)
+            ->whereRaw('UPPER(staff_code) = ?', [mb_strtoupper($code)])
+            ->first();
+    }
+
+    /**
+     * Mọi tài khoản cùng họ tên trong trường. So trong PHP sau khi chuẩn hóa: Excel hay mang chữ Việt
+     * dạng tổ hợp (NFD) và khoảng trắng thừa, so thẳng trong SQL thì "Nguyễn Văn A" không khớp chính nó.
+     *
+     * @return \Illuminate\Support\Collection<int,User>
+     */
+    private function byFullName(string $name, int $schoolId): \Illuminate\Support\Collection
+    {
+        $want = $this->nameKey($name);
+
+        return User::where('school_id', $schoolId)->orderBy('staff_code')->get()
+            ->filter(fn (User $u) => $this->nameKey((string) $u->full_name) === $want)
+            ->values();
+    }
+
+    private function nameKey(string $name): string
+    {
+        if (class_exists(\Normalizer::class)) {
+            $name = \Normalizer::normalize($name, \Normalizer::FORM_C) ?: $name;
+        }
+
+        return mb_strtolower((string) $this->clean($name));
+    }
+
+    /** Email giữ chỗ cho tài khoản tạo từ phiếu — email unique toàn hệ thống nên kèm mã trường. */
+    private function placeholderEmail(string $staffCode, int $schoolId): string
+    {
+        $slug = Str::slug($staffCode) ?: substr(sha1($staffCode), 0, 8);
+        $email = str_starts_with(strtolower($slug), 'gv-' . $schoolId . '-')
+            ? $slug . '@phieu.local'
+            : $slug . '.s' . $schoolId . '@phieu.local';
+
+        return User::where('email', $email)->exists()
+            ? $slug . '.s' . $schoolId . '-' . substr(sha1($staffCode . microtime()), 0, 6) . '@phieu.local'
+            : $email;
     }
 
     /**

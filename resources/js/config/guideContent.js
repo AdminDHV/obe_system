@@ -77,7 +77,7 @@ export const STEPS = [
       name: 'File 2 — Phiếu lớp học phần (Excel)',
       note: 'Chọn ngành, khóa, môn ở Bước 2 để tải phiếu điền sẵn thông tin môn, cột PLO/PI của ngành và danh sách sinh viên. Không chọn thì tải bản trống có ví dụ.',
       columns: [
-        { col: 'Sheet KhaiBao — thông tin', meaning: 'Mã môn học · Tên môn · Mã ngành · Khóa · Mã lớp học phần · Giảng viên giảng dạy · Năm học · Học kỳ. Giảng viên chỉ cần ghi tên.' },
+        { col: 'Sheet KhaiBao — thông tin', meaning: 'Mã môn học · Tên môn · Mã ngành · Khóa · Mã lớp học phần · Giảng viên giảng dạy · Mã giảng viên · Năm học · Học kỳ. Hệ thống tìm giảng viên theo mã trước, không có mã thì theo họ tên. Trường có hai giảng viên trùng tên thì phải ghi mã, không thì phiếu báo lỗi.' },
         { col: 'Sheet KhaiBao — Chuẩn đầu ra', meaning: 'Mỗi CLO một dòng kèm nội dung; mỗi PLO/PI một cột, ghi I, R, M hoặc A vào ô CLO đóng góp — đúng bảng "Mối quan hệ giữa CLO và PLO" trong đề cương.' },
         { col: 'Sheet KhaiBao — Đánh giá', meaning: 'Tên bài · Loại (quá trình/cuối kỳ) · Trọng số %. Trường tự quyết trọng số từng bài (bài 20, bài 10…), miễn tổng đúng 100%.' },
         { col: 'Mỗi bài một sheet', meaning: 'Tên sheet trùng tên bài. Mỗi câu hỏi một cột: Hình thức · Điểm tối đa (tổng các câu đúng 10) · CLO cần đo. Một cột có thể là nhiều câu trắc nghiệm, ví dụ "Câu 1-15". Dòng PLO/PI cần đo để trống, hệ thống tự lấy từ ma trận. Điểm từng sinh viên ghi bên dưới.' },

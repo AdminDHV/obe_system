@@ -9,7 +9,6 @@ use App\Models\CourseClass;
 use App\Models\Student;
 use App\Models\StudentGrade;
 use App\Services\Import\ClassSheetReader;
-use App\Services\OBE\CourseGradeFormula;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
@@ -228,29 +227,6 @@ final class PscGradeSheetService
 
         return $rows->contains(fn (StudentGrade $g) => $g->is_absent && $g->score === null)
             && ! $rows->contains(fn (StudentGrade $g) => $g->score !== null);
-    }
-
-    /**
-     * Điểm tổng kết môn — dùng khi file có cột "Điểm tổng kết".
-     *
-     * @param \Illuminate\Support\Collection<int,StudentGrade> $ofStudent
-     * @param \Illuminate\Support\Collection<int,Assessment> $assessments
-     */
-    public function courseMark($ofStudent, $assessments): ?float
-    {
-        return CourseGradeFormula::fromAssessments($assessments->map(fn (Assessment $a) => [
-            'weight' => (float) ($a->weight_percent ?? 0),
-            'category' => (string) $a->assessment_category,
-            'score' => $this->scoreOf($ofStudent, $a),
-        ])->values()->all());
-    }
-
-    /** @param \Illuminate\Support\Collection<int,StudentGrade> $ofStudent */
-    private function scoreOf($ofStudent, Assessment $a): ?float
-    {
-        $score = $ofStudent->firstWhere('assessment_id', $a->id)?->score;
-
-        return $score === null ? null : (float) $score;
     }
 
     /**

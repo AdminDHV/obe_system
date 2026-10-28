@@ -248,26 +248,26 @@ final class CourseFrameTemplate
         $ws = new Worksheet($book, CourseFrameReader::CLASS_SHEET);
         $book->addSheet($ws);
 
-        foreach (['Mã ngành', 'Khóa', 'Mã môn', 'Tên môn', 'Mã lớp học phần', 'Giảng viên', 'Năm học', 'Học kỳ'] as $i => $label) {
+        foreach (['Mã ngành', 'Khóa', 'Mã môn', 'Tên môn', 'Mã lớp học phần', 'Mã giảng viên', 'Giảng viên', 'Năm học', 'Học kỳ'] as $i => $label) {
             $ws->setCellValue($this->ui->col($i + 1) . '1', $label);
         }
-        $this->ui->header($ws, 'A1:H1');
+        $this->ui->header($ws, 'A1:I1');
 
         $year = $cohort ? $cohort->start_year . '-' . ($cohort->start_year + 1) : null;
         $rows = [];
         if ($courses === []) {
-            $rows[] = ['NGANH01', 'Khóa 2026', 'MON01', 'Môn ví dụ', 'MON01-01', 'Nguyễn Văn A', '2026-2027', '1'];
+            $rows[] = ['NGANH01', 'Khóa 2026', 'MON01', 'Môn ví dụ', 'MON01-01', 'GV001', 'Nguyễn Văn A', '2026-2027', '1'];
         }
         foreach ($courses as ['course' => $course, 'syllabus' => $syllabus]) {
             $classes = ($syllabus && $cohort)
-                ? CourseClass::with('lecturer:id,full_name')->where('syllabus_id', $syllabus->id)->where('cohort_id', $cohort->id)->orderBy('class_code')->get()
+                ? CourseClass::with('lecturer:id,full_name,staff_code')->where('syllabus_id', $syllabus->id)->where('cohort_id', $cohort->id)->orderBy('class_code')->get()
                 : collect();
             if ($classes->isEmpty()) {
-                $rows[] = [$program->code, $cohort?->name, $course->code, $course->name, null, null, $year, null];
+                $rows[] = [$program->code, $cohort?->name, $course->code, $course->name, null, null, null, $year, null];
                 continue;
             }
             foreach ($classes as $c) {
-                $rows[] = [$program->code, $cohort?->name, $course->code, $course->name, $c->class_code, $c->lecturer?->full_name, $c->academic_year, $c->semester === null ? null : (string) $c->semester];
+                $rows[] = [$program->code, $cohort?->name, $course->code, $course->name, $c->class_code, ClassSheetTemplate::realStaffCode($c->lecturer?->staff_code, $c->school_id), $c->lecturer?->full_name, $c->academic_year, $c->semester === null ? null : (string) $c->semester];
             }
         }
 
@@ -280,10 +280,10 @@ final class CourseFrameTemplate
         }
 
         $last = max($r, 2) + 60;
-        $this->ui->fill($ws, "E2:H{$last}");
+        $this->ui->fill($ws, "E2:I{$last}");
 
         $ws->freezePane('E2');
-        foreach (['A' => 12, 'B' => 12, 'C' => 12, 'D' => 30, 'E' => 18, 'F' => 26, 'G' => 12, 'H' => 8] as $col => $w) {
+        foreach (['A' => 12, 'B' => 12, 'C' => 12, 'D' => 30, 'E' => 18, 'F' => 14, 'G' => 26, 'H' => 12, 'I' => 8] as $col => $w) {
             $ws->getColumnDimension($col)->setWidth($w);
         }
     }

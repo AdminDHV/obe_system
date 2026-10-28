@@ -135,7 +135,7 @@ class TwoFileWorkflowHttpTest extends TestCase
         $info = $book->getSheetByName('KhaiBao');
         $info->setCellValue('B7', $maLop);
         $info->setCellValue('B8', 'GV thử');
-        $info->fromArray([['CLO1', 'Mô tả', 'R']], null, 'A13', true);
+        $info->fromArray([['CLO1', 'Mô tả', 'R']], null, 'A14', true);
 
         foreach (array_slice($book->getSheetNames(), 1) as $title) {
             $ws = $book->getSheetByName($title);

@@ -37,7 +37,8 @@ final class ClassSheetReader
         'nganh' => ['ma_nganh', 'nganh'],
         'khoa' => ['khoa', 'khoa_hoc', 'ten_khoa', 'nam_khoa'],
         'ma_lop' => ['ma_lop_hoc_phan', 'ma_lop', 'lop_hoc_phan'],
-        'giang_vien' => ['giang_vien_giang_day', 'giang_vien', 'giang_vien_day', 'gv_giang_day'],
+        'giang_vien' => ['giang_vien_giang_day', 'giang_vien', 'giang_vien_day', 'gv_giang_day', 'ho_ten_giang_vien'],
+        'ma_gv' => ['ma_giang_vien', 'ma_gv', 'ma_so_giang_vien', 'ma_can_bo'],
         'nam_hoc' => ['nam_hoc'],
         'hoc_ky' => ['hoc_ky'],
     ];

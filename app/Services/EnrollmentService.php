@@ -115,19 +115,4 @@ class EnrollmentService
 
         $enrollment->update(['status' => $newStatus]);
     }
-
-    public function getClassEnrollments(CourseClass $class): Collection
-    {
-        return Enrollment::where('class_id', $class->id)
-            ->with('student')
-            ->get()
-            ->map(fn(Enrollment $e) => [
-                'id' => $e->id,
-                'student_code' => $e->student->student_code,
-                'full_name' => $e->student->full_name,
-                'status' => $e->status,
-                'enrolled_at' => $e->enrolled_at?->format('d/m/Y H:i'),
-                'uuid' => $e->student->uuid,
-            ]);
-    }
 }

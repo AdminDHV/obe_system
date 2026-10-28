@@ -219,7 +219,7 @@ class CourseFrameImportTest extends TestCase
 
         $this->assertStringContainsString('Môn M01 (Khóa 2026): tổng trọng số các bài đánh giá là 90% — phải đúng 100%.', $loi);
         $this->assertStringContainsString("CLO · ô G2: mức 'X' không hợp lệ", $loi);
-        $this->assertStringContainsString("LopHocPhan · dòng 3: lớp 'M01-B' thiếu giảng viên.", $loi);
+        $this->assertStringContainsString("LopHocPhan · dòng 3: lớp 'M01-B' — thiếu giảng viên", $loi);
         $this->assertSame(0, Clo::count());
         $this->assertSame(0, CourseClass::count());
     }

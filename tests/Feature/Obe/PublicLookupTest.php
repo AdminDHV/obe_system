@@ -253,6 +253,62 @@ class PublicLookupTest extends TestCase
         $this->artisan('obe:lookup-codes --school=KHONGCO')->assertFailed();
     }
 
+    /** Trường thứ hai có học viên TRÙNG mã số với trường đầu — mã số chỉ duy nhất trong từng trường. */
+    private function truongThuHaiTrungMssv(): Student
+    {
+        $b = School::create(['code' => 'B', 'name' => 'Trường B', 'is_active' => true]);
+        $dept = Department::create(['code' => 'D', 'name' => 'Khoa', 'school_id' => $b->id]);
+        $program = Program::create(['department_id' => $dept->id, 'code' => 'P', 'name' => 'Ngành B', 'school_id' => $b->id]);
+        $cohort = Cohort::create(['program_id' => $program->id, 'name' => 'K2023', 'start_year' => 2023, 'school_id' => $b->id]);
+
+        return $this->makeStudent($b, $program, $cohort, '2312HV9001', 'Cường', 0.6);
+    }
+
+    public function test_hai_truong_trung_mssv_thi_tra_dung_nguoi_cua_truong_da_chon(): void
+    {
+        $cuong = $this->truongThuHaiTrungMssv();
+        $codeAn = app(StudentLookupService::class)->ensureCode($this->an);
+        $codeCuong = app(StudentLookupService::class)->ensureCode($cuong);
+
+        $this->post(route('lookup.submit'), ['school' => 'B', 'student_code' => '2312HV9001', 'lookup_code' => $codeCuong])
+            ->assertInertia(fn (Assert $page) => $page->where('result.student.full_name', 'Cường')->where('school', 'B'));
+
+        $this->post(route('lookup.submit'), ['school' => 'S', 'student_code' => '2312HV9001', 'lookup_code' => $codeAn])
+            ->assertInertia(fn (Assert $page) => $page->where('result.student.full_name', 'An'));
+
+        // Mã đúng của người trường B nhưng chọn trường S ⇒ không lộ hồ sơ.
+        $this->post(route('lookup.submit'), ['school' => 'S', 'student_code' => '2312HV9001', 'lookup_code' => $codeCuong])
+            ->assertSessionHasErrors('lookup_code');
+    }
+
+    public function test_nhieu_truong_ma_chua_chon_truong_thi_nhac_chon(): void
+    {
+        $this->truongThuHaiTrungMssv();
+        $code = app(StudentLookupService::class)->ensureCode($this->an);
+
+        $this->post(route('lookup.submit'), ['student_code' => '2312HV9001', 'lookup_code' => $code])
+            ->assertSessionHasErrors('school');
+    }
+
+    public function test_trang_tra_cuu_liet_ke_truong_va_chon_san_theo_duong_dan(): void
+    {
+        $this->truongThuHaiTrungMssv();
+        School::create(['code' => 'DEMO-KT', 'name' => '[DEMO] Trường mẫu', 'is_active' => true]);
+        School::create(['code' => 'NGUNG', 'name' => 'Trường ngừng', 'is_active' => false]);
+
+        $this->get(route('lookup.show', ['truong' => 'b']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Public/Lookup')
+                ->has('schools', 2) // bỏ trường mẫu và trường ngừng hoạt động
+                ->where('school', 'B'));
+    }
+
+    public function test_chi_mot_truong_thi_khong_can_chon(): void
+    {
+        $this->get(route('lookup.show'))
+            ->assertInertia(fn (Assert $page) => $page->has('schools', 1)->where('school', 'S'));
+    }
+
     private function makeStudent(School $school, Program $program, Cohort $cohort, string $code, string $name, float $score): Student
     {
         $student = Student::create([

@@ -64,11 +64,11 @@ class ClassSheetRoundTripTest extends TestCase
         // ── Trường điền phiếu ──
         $info->setCellValue('B7', '81002-A');
         $info->setCellValue('B8', 'Trần Thị Diện');
-        $info->setCellValue('B10', 1);
-        // Khối chuẩn đầu ra: dòng 12 là tiêu đề (A12 "Chuẩn đầu ra", C12 PLO1, D12 PI2.1).
-        $this->assertSame('Chuẩn đầu ra', $info->getCell('A12')->getValue());
-        $this->assertSame(['PLO1', 'PI2.1'], [$info->getCell('C12')->getValue(), $info->getCell('D12')->getValue()]);
-        $info->fromArray([['CLO1', 'Phát triển vấn đề', 'R', null], ['CLO2', 'Đạo đức nghiên cứu', null, 'M']], null, 'A13', true);
+        $info->setCellValue('B11', 1);
+        // Khối chuẩn đầu ra: dòng 13 là tiêu đề (A13 "Chuẩn đầu ra", C13 PLO1, D13 PI2.1).
+        $this->assertSame('Chuẩn đầu ra', $info->getCell('A13')->getValue());
+        $this->assertSame(['PLO1', 'PI2.1'], [$info->getCell('C13')->getValue(), $info->getCell('D13')->getValue()]);
+        $info->fromArray([['CLO1', 'Phát triển vấn đề', 'R', null], ['CLO2', 'Đạo đức nghiên cứu', null, 'M']], null, 'A14', true);
 
         foreach ($book->getSheetNames() as $title) {
             if ($title === 'KhaiBao') {

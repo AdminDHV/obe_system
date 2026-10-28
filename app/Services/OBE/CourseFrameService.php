@@ -207,8 +207,9 @@ final class CourseFrameService
                     $e[] = "{$cell}: mã lớp '{$code}' đã là lớp của khóa khác — mỗi lớp học phần một mã riêng.";
                     continue;
                 }
-                if ($row['giang_vien'] === null) {
-                    $e[] = "{$sheetLop} · dòng {$row['row']}: lớp '{$code}' thiếu giảng viên.";
+                $gv = $this->sheets->lecturerProblem($row['ma_gv'] ?? null, $row['giang_vien'], $schoolId);
+                if ($gv !== null) {
+                    $e[] = "{$sheetLop} · dòng {$row['row']}: lớp '{$code}' — {$gv}";
                 }
                 if ($row['hoc_ky'] !== null && ClassSheetReader::number($row['hoc_ky']) === null) {
                     $e[] = "{$sheetLop} · dòng {$row['row']}: học kỳ của lớp '{$code}' phải là số.";
@@ -299,7 +300,7 @@ final class CourseFrameService
                     [
                         'syllabus_id' => $syllabus->id,
                         'cohort_id' => $cohort->id,
-                        'lecturer_id' => $this->sheets->lecturer((string) $row['giang_vien'], $schoolId)->id,
+                        'lecturer_id' => $this->sheets->lecturer($row['ma_gv'] ?? null, $row['giang_vien'], $schoolId)->id,
                         'academic_year' => $row['nam_hoc'] ?? ($cohort->start_year . '-' . ($cohort->start_year + 1)),
                         'semester' => (int) (ClassSheetReader::number($row['hoc_ky']) ?? 1),
                     ],

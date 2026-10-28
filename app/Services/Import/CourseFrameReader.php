@@ -14,7 +14,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
  * Bố cục (mỗi sheet một bảng, dòng đầu là tiêu đề cột):
  *   CLO         Mã ngành · Khóa · Mã môn · Tên môn · Mã CLO · Nội dung CLO · mỗi PLO/PI một cột (I/R/M/A)
  *   DanhGia     Mã ngành · Khóa · Mã môn · Tên môn · Tên bài · Loại · Trọng số (%)
- *   LopHocPhan  Mã ngành · Khóa · Mã môn · Tên môn · Mã lớp học phần · Giảng viên · Năm học · Học kỳ
+ *   LopHocPhan  Mã ngành · Khóa · Mã môn · Tên môn · Mã lớp học phần · Mã giảng viên · Giảng viên · Năm học · Học kỳ
  *
  * Mã ngành, Khóa, Mã môn để trống thì lấy theo dòng trên (kiểu bảng gộp ô quen dùng trong Excel).
  * Tên môn chỉ để người điền dễ đọc, không dùng để tra.
@@ -40,7 +40,8 @@ final class CourseFrameReader
         'loai' => ['loai', 'loai_bai'],
         'trong_so' => ['trong_so'],
         'ma_lop' => ['ma_lop_hoc_phan', 'ma_lop', 'lop_hoc_phan'],
-        'giang_vien' => ['giang_vien_giang_day', 'giang_vien', 'giang_vien_day', 'gv_giang_day'],
+        'giang_vien' => ['giang_vien_giang_day', 'giang_vien', 'giang_vien_day', 'gv_giang_day', 'ho_ten_giang_vien'],
+        'ma_gv' => ['ma_giang_vien', 'ma_gv', 'ma_so_giang_vien', 'ma_can_bo'],
         'nam_hoc' => ['nam_hoc'],
         'hoc_ky' => ['hoc_ky'],
     ];
@@ -229,6 +230,7 @@ final class CourseFrameReader
             $out[] = $key + [
                 'ma_lop' => $code,
                 'giang_vien' => $get('giang_vien'),
+                'ma_gv' => $get('ma_gv'),
                 'nam_hoc' => $get('nam_hoc'),
                 'hoc_ky' => $get('hoc_ky'),
                 'cell' => $cols['ma_lop'] . $r,

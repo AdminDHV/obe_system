@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 /**
@@ -26,15 +27,19 @@ const MUC_DO = {
   A: { nhan: 'Đánh giá', y: 'Học phần dùng để đánh giá nội dung này' },
 };
 
-export default function Lookup({ result }) {
+export default function Lookup({ result, schools = [], school = null }) {
   const { errors } = usePage().props;
-  const [form, setForm] = useState({ student_code: '', lookup_code: '' });
+  const [form, setForm] = useState({ school: school ?? '', student_code: '', lookup_code: '' });
+  // Mã số học viên chỉ duy nhất trong một trường, nên nhiều trường thì phải chọn trường trước.
+  const nhieuTruong = schools.length > 1;
+  const truong = schools.find((s) => s.code === (form.school || school)) ?? null;
   const [moRong, setMoRong] = useState(null);
   const [moHuongDan, setMoHuongDan] = useState(false);
 
   const submit = (e) => {
     e.preventDefault();
-    router.post(route('lookup.submit'), form, { preserveScroll: true });
+    // Giữ những gì đã nhập (cả trường đã chọn) khi tra sai.
+    router.post(route('lookup.submit'), form, { preserveScroll: true, preserveState: 'errors' });
   };
 
   /**
@@ -76,13 +81,17 @@ export default function Lookup({ result }) {
 
       <header className="bg-white border-b print:border-b-2">
         <div className="mx-auto w-full max-w-4xl px-4 py-4 flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
-            DHV
+          <div className="flex h-10 min-w-10 max-w-24 shrink-0 items-center justify-center rounded-lg bg-primary px-2 text-primary-foreground font-bold text-sm">
+            {truong?.short_name ? (
+              <span className="truncate">{truong.short_name}</span>
+            ) : (
+              <GraduationCap className="w-5 h-5" />
+            )}
           </div>
           <div className="min-w-0">
             <p className="font-semibold leading-tight">Cổng tra cứu kết quả học tập</p>
-            <p className="text-xs text-muted-foreground leading-tight">
-              Trường Đại học Hùng Vương TP. Hồ Chí Minh
+            <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+              {truong ? truong.name : 'Chọn trường của bạn để tra cứu'}
             </p>
           </div>
         </div>
@@ -96,12 +105,40 @@ export default function Lookup({ result }) {
               <div className="mb-5">
                 <h1 className="text-lg font-semibold">Xem kết quả học tập của bạn</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Nhập mã số học viên và mã tra cứu được in trên phiếu kết quả do khoa cấp.
+                  {nhieuTruong
+                    ? 'Chọn trường, rồi nhập mã số học viên và mã tra cứu được in trên phiếu kết quả do khoa cấp.'
+                    : 'Nhập mã số học viên và mã tra cứu được in trên phiếu kết quả do khoa cấp.'}
                 </p>
               </div>
             )}
 
-            <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <form onSubmit={submit} className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+              {nhieuTruong && (
+                <div className="space-y-1.5 sm:col-span-3">
+                  <Label htmlFor="truong" className="text-xs font-medium">Trường</Label>
+                  <Select
+                    value={form.school || undefined}
+                    onValueChange={(v) => setForm({ ...form, school: v })}
+                  >
+                    <SelectTrigger id="truong" className="h-11 sm:h-9 min-w-0 gap-2 text-base sm:text-sm bg-white [&>span]:truncate">
+                      <SelectValue placeholder="Chọn trường của bạn" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schools.map((s) => (
+                        <SelectItem key={s.code} value={s.code} className="py-2.5 sm:py-1.5">
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors?.school && (
+                    <p className="flex items-start gap-2 text-sm text-red-600">
+                      <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                      {errors.school}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="mssv" className="text-xs font-medium">Mã số học viên</Label>
                 <Input

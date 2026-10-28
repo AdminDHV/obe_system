@@ -10,10 +10,6 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
-            <exclude>tests/Feature/E2E</exclude>
-        </testsuite>
-        <testsuite name="E2E">
-            <directory>tests/Feature/E2E</directory>
         </testsuite>
     </testsuites>
     <source>

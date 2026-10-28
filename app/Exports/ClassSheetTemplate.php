@@ -99,6 +99,7 @@ final class ClassSheetTemplate
             [
                 'ma_lop' => $class->class_code,
                 'giang_vien' => $class->lecturer?->full_name,
+                'ma_gv' => self::realStaffCode($class->lecturer?->staff_code, $class->school_id),
                 'nam_hoc' => $class->academic_year,
                 'hoc_ky' => $class->semester === null ? null : (string) $class->semester,
             ],
@@ -150,7 +151,7 @@ final class ClassSheetTemplate
         $ws->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $ws->setCellValue('A2', $theoKhung
             ? 'Môn này đã dựng khung: CLO, ma trận và bài đánh giá bên dưới do kỹ thuật của trường khai, sửa ở đây không có tác dụng. Chỉ cần điền câu hỏi và điểm ở sheet từng bài. Vắng thi ghi VT.'
-            : 'Điền các ô tô vàng. Mỗi lớp học phần một phiếu. Mỗi bài đánh giá một sheet riêng, tên sheet trùng tên bài. Vắng thi ghi VT.');
+            : 'Điền các ô tô vàng. Mỗi lớp học phần một phiếu. Mỗi bài đánh giá một sheet riêng, tên sheet trùng tên bài. Trường có giảng viên trùng tên thì ghi thêm mã giảng viên. Vắng thi ghi VT.');
         $ws->getStyle('A2')->getFont()->setItalic(true);
 
         $info = [
@@ -160,6 +161,7 @@ final class ClassSheetTemplate
             ['Khóa', $cohort?->name],
             ['Mã lớp học phần', $lop['ma_lop'] ?? null],
             ['Giảng viên giảng dạy', $lop['giang_vien'] ?? null],
+            ['Mã giảng viên', $lop['ma_gv'] ?? null],
             ['Năm học', $lop['nam_hoc'] ?? ($cohort ? $cohort->start_year . '-' . ($cohort->start_year + 1) : null)],
             ['Học kỳ', $lop['hoc_ky'] ?? null],
         ];
@@ -406,5 +408,18 @@ final class ClassSheetTemplate
             ->setShowErrorMessage(true)
             ->setFormula1('"' . $values . '"');
         $dv->setSqref($range);
+    }
+
+    /**
+     * Mã giảng viên để điền sẵn vào phiếu. Tài khoản tự tạo từ phiếu mang mã máy sinh (GV-<trường>-…) —
+     * điền mã đó ra chỉ làm người đọc rối, để trống thì vẫn khớp theo họ tên như trước.
+     */
+    public static function realStaffCode(?string $code, ?int $schoolId): ?string
+    {
+        if ($code === null || $code === '') {
+            return null;
+        }
+
+        return str_starts_with(strtoupper($code), 'GV-' . $schoolId . '-') ? null : $code;
     }
 }

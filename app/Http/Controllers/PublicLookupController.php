@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\School;
 use App\Services\OBE\StudentLookupService;
 use App\Services\OBE\StudentPiBreakdownService;
 use App\Services\OBE\StudentProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,9 +23,48 @@ use Inertia\Response;
  */
 class PublicLookupController extends Controller
 {
-    public function show(): Response
+    public function show(Request $request): Response
     {
-        return Inertia::render('Public/Lookup', ['result' => null]);
+        $schools = $this->schools();
+        $picked = $this->pick($schools, $request->query('truong'));
+
+        return Inertia::render('Public/Lookup', [
+            'result' => null,
+            'schools' => $schools->map(fn (School $s) => $this->schoolProp($s))->values(),
+            'school' => $picked?->code,
+        ]);
+    }
+
+    /**
+     * Trường hiện ở ô chọn: đang hoạt động, bỏ các trường dữ liệu mẫu [DEMO] — trừ khi hệ thống chỉ
+     * có trường mẫu (máy dev, buổi tập huấn), không thì trang không tra được gì.
+     *
+     * @return Collection<int,School>
+     */
+    private function schools(): Collection
+    {
+        $active = School::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'short_name']);
+        // Trường mẫu luôn mang tiền tố "[DEMO]" ở TÊN (DemoSchools) — lọc theo tên, mã thì trường thật cũng có thể bắt đầu bằng DEMO.
+        $real = $active->reject(fn (School $s) => str_starts_with($s->name, '[DEMO]'));
+
+        return $real->isNotEmpty() ? $real->values() : $active;
+    }
+
+    /** Chỉ một trường thì khỏi chọn; nhiều trường thì phải đúng mã một trường trong danh sách. */
+    private function pick(Collection $schools, mixed $code): ?School
+    {
+        if ($schools->count() === 1) {
+            return $schools->first();
+        }
+        $code = is_string($code) ? strtoupper(trim($code)) : '';
+
+        return $code === '' ? null : $schools->first(fn (School $s) => strtoupper($s->code) === $code);
+    }
+
+    /** @return array{code:string,name:string,short_name:?string} */
+    private function schoolProp(School $s): array
+    {
+        return ['code' => $s->code, 'name' => $s->name, 'short_name' => $s->short_name];
     }
 
     public function lookup(
@@ -33,11 +74,19 @@ class PublicLookupController extends Controller
         StudentProgressService $progress,
     ): Response|RedirectResponse {
         $data = $request->validate([
+            'school' => ['nullable', 'string', 'max:50'],
             'student_code' => ['required', 'string', 'max:50'],
             'lookup_code' => ['required', 'string', 'max:20'],
         ]);
 
-        $student = $lookup->find($data['student_code'], $data['lookup_code'], $request->ip());
+        // Mã số học viên chỉ duy nhất trong từng trường — hai trường trùng mã số thì phải biết tra ở đâu.
+        $schools = $this->schools();
+        $school = $this->pick($schools, $data['school'] ?? null);
+        if (! $school) {
+            return back()->withErrors(['school' => 'Chọn trường của bạn trước khi tra cứu.']);
+        }
+
+        $student = $lookup->find($data['student_code'], $data['lookup_code'], $request->ip(), $school->id);
 
         if (! $student) {
             // Thông báo CHUNG cho cả "sai MSSV" lẫn "sai mã" — không xác nhận MSSV có tồn tại.
@@ -50,6 +99,8 @@ class PublicLookupController extends Controller
         $pi = $breakdown->forStudent($student);
 
         return Inertia::render('Public/Lookup', [
+            'schools' => $schools->map(fn (School $s) => $this->schoolProp($s))->values(),
+            'school' => $school->code,
             'result' => [
                 'student' => [
                     'student_code' => $student->student_code,
